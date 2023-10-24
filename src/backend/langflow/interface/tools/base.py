@@ -16,7 +16,6 @@ from langflow.interface.tools.constants import (
 )
 from langflow.interface.tools.util import get_tool_params
 from langflow.services.getters import get_settings_service
-
 from langflow.template.field.base import TemplateField
 from langflow.template.template.base import Template
 from langflow.utils import util
@@ -132,13 +131,13 @@ class ToolCreator(LangChainTypeCreator):
             fields = tool_dict["template"]
 
             # Pop unnecessary fields and add name
-            fields.pop("_type")  # type: ignore
-            fields.pop("return_direct")  # type: ignore
-            fields.pop("verbose")  # type: ignore
+            fields.pop("_type", None)  # type: ignore
+            fields.pop("return_direct", None)  # type: ignore
+            fields.pop("verbose", None)  # type: ignore
 
             tool_params = {
-                "name": fields.pop("name")["value"],  # type: ignore
-                "description": fields.pop("description")["value"],  # type: ignore
+                "name": fields.pop("name").get("value"),  # type: ignore
+                "description": fields.pop("description").get("value"),  # type: ignore
             }
 
             fields = [
@@ -161,6 +160,18 @@ class ToolCreator(LangChainTypeCreator):
         template = Template(fields=fields, type_name=tool_type)
 
         tool_params = {**tool_params, **self.type_to_loader_dict[name]["params"]}
+
+        # tool_params might contain `template` (e.g. QueryCheckerTool) which would
+        # overwrite `template` in the signature. Just ignore it for now.
+        # TODO: my suggestion is to make tool_params an inner dict of the signature
+        # i.e: signature = {
+        #     "template": util.format_dict(template.to_dict()),
+        #     "langchain_params": tool_params,
+        #     "base_classes": base_classes,
+        # }
+        tool_params.pop("template", None)
+        tool_params.pop("base_classes", None)
+
         return {
             "template": util.format_dict(template.to_dict()),
             **tool_params,

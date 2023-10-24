@@ -1,15 +1,19 @@
+import functools
+import types
 from abc import ABC, abstractmethod
+from bdb import set_trace
 from typing import Any, Dict, List, Optional, Type, Union
-from langchain.chains.base import Chain
+
+import pydantic
 from langchain.agents import AgentExecutor
-from langflow.services.getters import get_settings_service
+from langchain.chains.base import Chain
+from loguru import logger
 from pydantic import BaseModel
 
+from langflow.services.getters import get_settings_service
 from langflow.template.field.base import TemplateField
 from langflow.template.frontend_node.base import FrontendNode
 from langflow.template.template.base import Template
-from loguru import logger
-
 
 # Assuming necessary imports for Field, Template, and FrontendNode classes
 
@@ -72,11 +76,47 @@ class LangChainTypeCreator(BaseModel, ABC):
 
         return result
 
+    def validate_signature(self, signature: Union[Dict[Any, Any], FrontendNode]):
+        if isinstance(signature, FrontendNode):
+            return
+
+        for key, value in signature.items():
+            # signature content should not contain functions so that it's serializable
+            if isinstance(
+                value,
+                (
+                    types.FunctionType,
+                    types.MethodType,
+                    types.BuiltinFunctionType,
+                    types.BuiltinMethodType,
+                    functools.partial,
+                ),
+            ):
+                raise TypeError(
+                    f"Invalid signature for {key}: {value} of type {type(value)}."
+                )
+
     def frontend_node(self, name) -> Union[FrontendNode, None]:
-        signature = self.get_signature(name)
+        try:
+            signature = self.get_signature(name)
+        except (
+            KeyError,
+            AttributeError,
+            pydantic.error_wrappers.ValidationError,
+        ) as exc:
+            logger.error(f"Error while getting signature for {name}: {str(exc)}.")
+            return None
+
         if signature is None:
-            logger.error(f"Node {name} not loaded")
+            logger.error(f"Node {name} not loaded.")
             return signature
+
+        try:
+            self.validate_signature(signature)
+        except TypeError as exc:
+            logger.error(f"Invalid signature for {name}: {str(exc)}.")
+            return None
+
         if not isinstance(signature, FrontendNode):
             fields = [
                 TemplateField(
@@ -95,6 +135,7 @@ class LangChainTypeCreator(BaseModel, ABC):
                 for key, value in signature["template"].items()
                 if key != "_type"
             ]
+
             template = Template(type_name=name, fields=fields)
             signature = self.frontend_node_class(
                 template=template,

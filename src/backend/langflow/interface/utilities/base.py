@@ -1,14 +1,13 @@
 from typing import Dict, List, Optional, Type
 
 from langchain import utilities
+from loguru import logger
 
 from langflow.custom.customs import get_custom_nodes
 from langflow.interface.base import LangChainTypeCreator
 from langflow.interface.importing.utils import import_class
 from langflow.services.getters import get_settings_service
-
 from langflow.template.frontend_node.utilities import UtilitiesFrontendNode
-from loguru import logger
 from langflow.utils.util import build_template_from_class
 
 
@@ -51,11 +50,10 @@ class UtilityCreator(LangChainTypeCreator):
                 return custom_nodes[name]
             return build_template_from_class(name, self.type_to_loader_dict)
         except ValueError as exc:
-            raise ValueError(f"Utility {name} not found") from exc
-
+            logger.error(f"Utility {name} not found: {exc}")
         except AttributeError as exc:
             logger.error(f"Utility {name} not loaded: {exc}")
-            return None
+        return None
 
     def to_list(self) -> List[str]:
         return list(self.type_to_loader_dict.keys())

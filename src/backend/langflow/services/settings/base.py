@@ -1,14 +1,14 @@
 import contextlib
 import json
-import orjson
 import os
-from shutil import copy2
-from typing import Optional, List
 from pathlib import Path
+from shutil import copy2
+from typing import List, Optional
 
+import orjson
 import yaml
-from pydantic import BaseSettings, root_validator, validator
 from loguru import logger
+from pydantic import BaseSettings, root_validator, validator
 
 # BASE_COMPONENTS_PATH = str(Path(__file__).parent / "components")
 BASE_COMPONENTS_PATH = str(Path(__file__).parent.parent.parent / "components")
@@ -229,6 +229,10 @@ def load_settings_from_yaml(file_path: str) -> Settings:
         for key in settings_dict:
             if key not in Settings.__fields__.keys():
                 raise KeyError(f"Key {key} not found in settings")
-            logger.debug(f"Loading {len(settings_dict[key])} {key} from {file_path}")
+            logger.debug(
+                "Loading"
+                f" {len(settings_dict[key]) if isinstance(settings_dict[key], list) else ''} {key} from"
+                f" {file_path}"
+            )
 
     return Settings(**settings_dict)
