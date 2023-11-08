@@ -1,14 +1,14 @@
-import re
-import inspect
 import importlib
+import inspect
+import re
 from functools import wraps
-from typing import List, Optional, Dict, Any, Union
+from typing import Any, Dict, List, Optional, Union
 
 from docstring_parser import parse
+from langchain.schema import Document
 
 from langflow.template.frontend_node.constants import FORCE_SHOW_FIELDS
 from langflow.utils import constants
-from langchain.schema import Document
 
 
 def remove_ansi_escape_codes(text):
@@ -279,6 +279,7 @@ def format_dict(
 
         value["type"] = get_formatted_type(key, _type)
         value["show"] = should_show_field(value, key)
+        value["advanced"] = should_be_advanced_field(value, key)
         value["password"] = is_password_field(key)
         value["multiline"] = is_multiline_field(key)
 
@@ -381,6 +382,19 @@ def should_show_field(value: Dict[str, Any], key: str) -> bool:
         or key in FORCE_SHOW_FIELDS
         or any(text in key.lower() for text in ["password", "token", "api", "key"])
     )
+
+
+def should_be_advanced_field(value: Dict[str, Any], key: str) -> bool:
+    """
+    Determines if the field should be an advanced field or not.
+
+    Returns:
+        True if the field should be advanced, False otherwise.
+    """
+    if value["show"]:
+        return False
+
+    return not key.startswith("__")
 
 
 def is_password_field(key: str) -> bool:

@@ -1,18 +1,18 @@
 from typing import Any, Callable, List, Optional, Union
 from uuid import UUID
+
+import yaml
 from fastapi import HTTPException
+from pydantic import Extra
+
 from langflow.field_typing.constants import CUSTOM_COMPONENT_SUPPORTED_TYPES
 from langflow.interface.custom.component import Component
 from langflow.interface.custom.directory_reader import DirectoryReader
-from langflow.services.getters import get_db_service
 from langflow.interface.custom.utils import extract_inner_type
-
-from langflow.utils import validate
-
-from langflow.services.database.utils import session_getter
 from langflow.services.database.models.flow import Flow
-from pydantic import Extra
-import yaml
+from langflow.services.database.utils import session_getter
+from langflow.services.getters import get_db_service
+from langflow.utils import validate
 
 
 class CustomComponent(Component, extra=Extra.allow):
@@ -58,7 +58,9 @@ class CustomComponent(Component, extra=Extra.allow):
             ) and not reader._is_type_hint_imported(type_hint, code):
                 error_detail = {
                     "error": "Type hint Error",
-                    "traceback": f"Type hint '{type_hint}' is used but not imported in the code.",
+                    "traceback": (
+                        f"Type hint '{type_hint}' is used but not imported in the code."
+                    ),
                 }
                 raise HTTPException(status_code=400, detail=error_detail)
 
@@ -192,8 +194,7 @@ class CustomComponent(Component, extra=Extra.allow):
         return validate.create_function(self.code, self.function_entrypoint_name)
 
     def load_flow(self, flow_id: str, tweaks: Optional[dict] = None) -> Any:
-        from langflow.processing.process import build_sorted_vertices
-        from langflow.processing.process import process_tweaks
+        from langflow.processing.process import build_sorted_vertices, process_tweaks
 
         db_service = get_db_service()
         with session_getter(db_service) as session:

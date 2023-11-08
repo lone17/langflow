@@ -1,42 +1,41 @@
 import ast
 import contextlib
+import re
+import traceback
+import warnings
 from typing import Any, List
+
+from fastapi import HTTPException
+from loguru import logger
+
 from langflow.api.utils import get_new_key
+from langflow.field_typing.constants import CUSTOM_COMPONENT_SUPPORTED_TYPES
 from langflow.interface.agents.base import agent_creator
 from langflow.interface.chains.base import chain_creator
-from langflow.field_typing.constants import CUSTOM_COMPONENT_SUPPORTED_TYPES
+from langflow.interface.custom.base import custom_component_creator
+from langflow.interface.custom.custom_component import CustomComponent
+from langflow.interface.custom.directory_reader import DirectoryReader
 from langflow.interface.custom.utils import extract_inner_type
 from langflow.interface.document_loaders.base import documentloader_creator
 from langflow.interface.embeddings.base import embedding_creator
 from langflow.interface.importing.utils import get_function_custom
 from langflow.interface.llms.base import llm_creator
 from langflow.interface.memories.base import memory_creator
+from langflow.interface.output_parsers.base import output_parser_creator
 from langflow.interface.prompts.base import prompt_creator
+from langflow.interface.retrievers.base import retriever_creator
 from langflow.interface.text_splitters.base import textsplitter_creator
 from langflow.interface.toolkits.base import toolkits_creator
 from langflow.interface.tools.base import tool_creator
 from langflow.interface.utilities.base import utility_creator
 from langflow.interface.vector_store.base import vectorstore_creator
 from langflow.interface.wrappers.base import wrapper_creator
-from langflow.interface.output_parsers.base import output_parser_creator
-from langflow.interface.custom.base import custom_component_creator
-from langflow.interface.custom.custom_component import CustomComponent
-
 from langflow.template.field.base import TemplateField
 from langflow.template.frontend_node.constants import CLASSES_TO_REMOVE
 from langflow.template.frontend_node.custom_components import (
     CustomComponentFrontendNode,
 )
-from langflow.interface.retrievers.base import retriever_creator
-
-from langflow.interface.custom.directory_reader import DirectoryReader
-from loguru import logger
 from langflow.utils.util import get_base_classes
-
-import re
-import warnings
-import traceback
-from fastapi import HTTPException
 
 
 # Used to get the base_classes list
@@ -120,7 +119,8 @@ def add_new_custom_field(
 
     if "name" in field_config:
         warnings.warn(
-            "The 'name' key in field_config is used to build the object and can't be changed."
+            "The 'name' key in field_config is used to build the object and can't be"
+            " changed."
         )
         field_config.pop("name", None)
 
@@ -164,8 +164,6 @@ def add_code_field(template, raw_code, field_config):
         }
     }
     template.get("template")["code"] = code_field.get("code")
-
-    return template
 
 
 def extract_type_from_optional(field_type):
@@ -325,7 +323,7 @@ def build_langchain_template_custom_component(custom_component: CustomComponent)
 
         add_extra_fields(frontend_node, field_config, entrypoint_args)
         logger.debug("Added extra fields")
-        frontend_node = add_code_field(
+        add_code_field(
             frontend_node, custom_component.code, field_config.get("code", {})
         )
         logger.debug("Added code field")
@@ -378,7 +376,8 @@ def build_valid_menu(valid_components):
 
         for component in menu_item["components"]:
             logger.debug(
-                f"Building component: {component.get('name'), component.get('output_types')}"
+                "Building component:"
+                f" {component.get('name'), component.get('output_types')}"
             )
             try:
                 component_name = component["name"]
@@ -410,7 +409,8 @@ def build_valid_menu(valid_components):
             except Exception as exc:
                 logger.error(f"Error loading Component: {component['output_types']}")
                 logger.exception(
-                    f"Error while building custom component {component_output_types}: {exc}"
+                    f"Error while building custom component {component_output_types}:"
+                    f" {exc}"
                 )
 
     return valid_menu
@@ -450,7 +450,8 @@ def build_invalid_menu(invalid_components):
 
             except Exception as exc:
                 logger.exception(
-                    f"Error while creating custom component [{component_name}]: {str(exc)}"
+                    f"Error while creating custom component [{component_name}]:"
+                    f" {str(exc)}"
                 )
 
     return invalid_menu
@@ -496,7 +497,8 @@ def get_all_types_dict(settings_service):
     custom_components_from_file: dict[str, Any] = {}
     if settings_service.settings.COMPONENTS_PATH:
         logger.info(
-            f"Building custom components from {settings_service.settings.COMPONENTS_PATH}"
+            "Building custom components from"
+            f" {settings_service.settings.COMPONENTS_PATH}"
         )
 
         custom_component_dicts = []
@@ -517,7 +519,8 @@ def get_all_types_dict(settings_service):
                 continue
             category = list(custom_component_dict.keys())[0]
             logger.info(
-                f"Loading {len(custom_component_dict[category])} component(s) from category {category}"
+                f"Loading {len(custom_component_dict[category])} component(s) from"
+                f" category {category}"
             )
             custom_components_from_file = merge_nested_dicts_with_renaming(
                 custom_components_from_file, custom_component_dict
